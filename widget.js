@@ -8,15 +8,15 @@
         websiteLink: 'https://www.aquapurify.eu'
     };
 
-    // LISTE DES PARAMÈTRES À RÉCUPÉRER (API)
-    // 1345: TH, 1340: Nitrates, 1302: pH, 1313: Chlore
-    // 1149: E.Coli (Bactérie)
-    // 8578: Somme 20 PFAS (Total PFAS)
-    // 1749: Total Pesticides
-    // 1382: Plomb, 1388: Uranium, 1476: CVM (Vinyle), 1117: Benzène
+    // -----------------------------------------------------------
+    // 2. PARAMÉTRAGE (Dictionnaire)
+    // -----------------------------------------------------------
+    
+    // LISTE DES CODES À RÉCUPÉRER
+    // On garde la liste actuelle, on ajoutera les vôtres ensuite.
     const TARGET_PARAMS = [1345, 1340, 1302, 1313, 1149, 8578, 1749, 1382, 1388, 1476, 1117];
 
-    // ORDRE D'AFFICHAGE SOUHAITÉ DANS LA LISTE
+    // ORDRE D'AFFICHAGE DANS LA LISTE
     const DISPLAY_ORDER = [
         "1340", // Nitrates
         "1302", // pH
@@ -26,29 +26,27 @@
         "1749", // Total Pesticides
         "1382", // Plomb
         "1388", // Uranium
-        "1476"  // CVM
+        "1476", // CVM
+        "1117"  // Benzène
     ];
 
-    // DÉFINITIONS & SEUILS
+    // DÉFINITIONS, UNITÉS ET SEUILS
     const PARAMS_MAP = {
-        "1345": { label: "Dureté", unit: "°f" }, // Sert uniquement au Score principal
+        "1345": { label: "Dureté", unit: "°f" }, 
         "1340": { label: "Nitrates", unit: "mg/L", limit: 50 },
         "1302": { label: "pH", unit: "", min: 6.5, max: 9.0 },
         "1313": { label: "Chlore libre", unit: "mg/L", limit: 10 }, 
         "1149": { label: "Bactéries E. Coli", unit: "n/100mL", limit: 0 },
-        
-        // TOTAUX UNIQUEMENT
-        "8578": { label: "PFAS (Total 20)", unit: "µg/L", limit: 0.10, desc: "Polluants éternels" },
+        "8578": { label: "PFAS (Total 20)", unit: "µg/L", limit: 0.10 },
         "1749": { label: "Pesticides (Total)", unit: "µg/L", limit: 0.50 },
-        
-        // MÉTAUX & GAZ
         "1382": { label: "Plomb", unit: "µg/L", limit: 10 },
         "1388": { label: "Uranium", unit: "µg/L", limit: 30 },
-        "1476": { label: "CVM (Vinyle)", unit: "µg/L", limit: 0.5 }
+        "1476": { label: "CVM (Vinyle)", unit: "µg/L", limit: 0.5 },
+        "1117": { label: "Benzène", unit: "µg/L", limit: 1.0 }
     };
 
     // -----------------------------------------------------------
-    // 2. CSS ISOLÉ
+    // 3. CSS (DESIGN & ANIMATIONS)
     // -----------------------------------------------------------
     const css = `
         #kinetico-fr-widget-container { font-family: 'Segoe UI', Arial, sans-serif; max-width: 650px; margin: 30px auto; background: #fff; border: 1px solid #e1e4e8; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: visible; text-align: center; position: relative; padding-bottom: 25px; }
@@ -67,6 +65,21 @@
         .kw-fr-suggestion-item { padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #f0f0f0; text-align: left; }
         .kw-fr-suggestion-item:hover { background: #f0f7ff; color: #0054A4; }
 
+        /* LOADER (ROUE ANIMÉE) */
+        .kw-fr-loader-container { display: none; margin: 20px auto; text-align: center; }
+        .kw-fr-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #00ADEF;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: kw-spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        .kw-fr-loader-text { color: #888; font-style: italic; font-size: 0.9em; }
+        @keyframes kw-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* SLIDER */
         .kw-fr-slider-wrapper { padding: 0 20px; transition: opacity 0.3s; margin-top: 10px; }
         .kw-fr-slider-container { position: relative; height: 60px; margin: 20px 10px; }
         .kw-fr-slider-bar { height: 40px; width: 100%; border-radius: 4px; background: linear-gradient(90deg, #F57F20 0%, #E5007E 50%, #00ADEF 100%); position: relative; top: 10px; }
@@ -105,13 +118,12 @@
         .kw-fr-dealer-link { color: #555; text-decoration: none; transition: color 0.2s; }
         .kw-fr-dealer-link:hover { color: #000; }
         .kw-fr-source-data { font-size: 9px; color: #aaa; margin-top: 10px; display: block; }
-        .kw-fr-loader { color: #888; display: none; margin: 10px; font-style: italic; font-size: 0.9em; }
         .kw-fr-error-msg { color: #d32f2f; display: none; margin: 10px; font-weight: bold; background:#ffebee; padding:10px; border-radius:5px;}
         @keyframes kw-fadein { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     `;
 
     // -----------------------------------------------------------
-    // 3. HTML ISOLÉ
+    // 4. HTML
     // -----------------------------------------------------------
     const htmlTemplate = `
         <div id="kinetico-fr-widget-container">
@@ -128,7 +140,12 @@
             <div class="kw-fr-search-area">
                 <input type="text" id="kw-input-fr" class="kw-fr-input" placeholder="Ex: Paris, Lyon..." autocomplete="off">
                 <div id="kw-suggestions-fr" class="kw-fr-suggestions"></div>
-                <div id="kw-loader-fr" class="kw-fr-loader">Recherche des analyses officielles...</div>
+                
+                <div id="kw-loader-fr" class="kw-fr-loader-container">
+                    <div class="kw-fr-spinner"></div>
+                    <div class="kw-fr-loader-text">Analyse de l'historique en cours...</div>
+                </div>
+
                 <div id="kw-error-fr" class="kw-fr-error-msg"></div>
             </div>
 
@@ -159,7 +176,7 @@
                     <div id="kw-verdict-desc-fr" style="font-size: 0.95em; color:#555; margin:0; line-height: 1.5;"></div>
 
                     <div id="kw-details-container-fr" class="kw-fr-details-container">
-                        <div class="kw-fr-details-header">Analyses sanitaires (Détail)</div>
+                        <div class="kw-fr-details-header">Dernières valeurs connues (Historique)</div>
                         <div id="kw-details-list-fr"></div>
                     </div>
 
@@ -178,19 +195,18 @@
     `;
 
     // -----------------------------------------------------------
-    // 4. LOGIQUE JAVASCRIPT
+    // 5. LOGIQUE JAVASCRIPT
     // -----------------------------------------------------------
     function initWidget() {
         const root = document.getElementById(CONFIG.containerId);
         if (!root) return;
 
-        // Injection CSS
         const styleTag = document.createElement('style');
         styleTag.textContent = css;
         document.head.appendChild(styleTag);
         root.innerHTML = htmlTemplate;
 
-        // Elements
+        // DOM
         const input = document.getElementById('kw-input-fr');
         const suggestions = document.getElementById('kw-suggestions-fr');
         const loader = document.getElementById('kw-loader-fr');
@@ -201,13 +217,11 @@
         const scoreVal = document.getElementById('kw-score-val-fr');
         const verdictTitle = document.getElementById('kw-verdict-title-fr');
         const verdictDesc = document.getElementById('kw-verdict-desc-fr');
-        const ctaBtn = document.getElementById('kw-cta-btn-fr');
         const dropShape = document.getElementById('kw-drop-shape-fr');
         const detailsList = document.getElementById('kw-details-list-fr');
 
         let debounceTimer;
 
-        // Input Listener
         input.addEventListener('input', (e) => {
             const val = e.target.value;
             clearTimeout(debounceTimer);
@@ -250,10 +264,11 @@
             drop.style.opacity = '0';
             
             try {
-                // 1. Trouver le TH (Calcaire) pour valider le réseau
+                // 1. On cherche le TH sur la commune pour identifier le réseau
+                // On charge une première louche de données
                 let dataList = await fetchHubEauData(insee, 'commune');
                 
-                // Si pas de TH trouvé sur la commune, on cherche les réseaux (UDI)
+                // Si pas de TH trouvé, on cherche les réseaux UDI
                 const thCheck = dataList.find(d => d.code_parametre == 1345);
                 
                 if (!thCheck) {
@@ -261,7 +276,7 @@
                     if (udiList && udiList.length > 0) {
                         for (const udi of udiList) {
                             dataList = await fetchHubEauData(udi, 'reseau');
-                            // Si on trouve du TH sur ce réseau, on garde ce lot de données
+                            // Si on trouve du TH sur ce réseau, on considère que c'est le bon
                             if (dataList.find(d => d.code_parametre == 1345)) break; 
                         }
                     }
@@ -269,7 +284,6 @@
 
                 loader.style.display = 'none';
                 
-                // On vérifie qu'on a au moins le TH pour le score principal
                 const finalTh = dataList.find(d => d.code_parametre == 1345);
                 if (finalTh) {
                     updateUI(finalTh.resultat_numerique, dataList, name);
@@ -288,8 +302,10 @@
 
         async function fetchHubEauData(code, type) {
             const codesStr = TARGET_PARAMS.join(',');
-            // size=40 pour être large et capter tous les params demandés
-            let url = `https://hubeau.eaufrance.fr/api/v1/qualite_eau_potable/resultats_dis?code_parametre=${codesStr}&sort=desc&size=40`;
+            // --- MODIFICATION CLÉ ---
+            // On demande size=300 pour remonter loin dans l'historique (plusieurs années)
+            // L'API renvoie du plus récent au plus ancien (sort=desc par défaut)
+            let url = `https://hubeau.eaufrance.fr/api/v1/qualite_eau_potable/resultats_dis?code_parametre=${codesStr}&sort=desc&size=300`;
             if (type === 'commune') url += `&code_commune=${code}`; else url += `&code_reseau=${code}`;
             
             const req = await fetch(url);
@@ -345,39 +361,36 @@
             resultPanel.style.display = 'block';
 
             // -------------------------
-            // 2. LISTE DÉTAILS
+            // 2. LISTE DÉTAILS AVEC HISTORIQUE
             // -------------------------
             detailsList.innerHTML = '';
             
-            // On boucle sur l'ORDRE DÉFINI (pour ne rien oublier)
             DISPLAY_ORDER.forEach(code => {
                 const def = PARAMS_MAP[code];
+                
+                // --- LOGIQUE HISTORIQUE ---
+                // fullData contient 300 résultats triés par date (le plus récent en premier).
+                // .find() va s'arrêter dès qu'il trouve la PREMIÈRE occurrence du code.
+                // Donc on récupère bien la valeur la plus récente disponible dans l'historique.
                 const item = fullData.find(d => d.code_parametre == code);
                 
                 let valHtml = '';
                 let dotClass = 'kw-dot-grey';
                 
                 if (!item) {
-                    // CAS : Donnée absente -> On l'affiche en "Non analysé"
-                    valHtml = `<span class="kw-fr-detail-na">Non analysé sur ce réseau</span>`;
+                    valHtml = `<span class="kw-fr-detail-na">Non analysé récemment</span>`;
                     dotClass = 'kw-dot-grey';
                 } else {
-                    // CAS : Donnée présente
                     const val = parseFloat(item.resultat_numerique);
                     valHtml = `${val} <small>${def.unit}</small>`;
                     
-                    // Calcul couleur pastille
-                    dotClass = 'kw-dot-green'; // Par défaut vert
+                    dotClass = 'kw-dot-green'; 
                     
-                    // Logique Limites
                     if (def.limit !== undefined) {
-                        // Limite max
                         if (val > def.limit) dotClass = 'kw-dot-red';
-                        // Cas spécial limite proche pour PFAS/Pesticides (Alerte Orange si > 50% de la limite)
                         else if ((code == '8578' || code == '1749') && val > (def.limit / 2)) dotClass = 'kw-dot-orange';
                     }
                     if (def.min !== undefined && def.max !== undefined) {
-                        // Plage (ex: pH)
                         if (val < def.min || val > def.max) dotClass = 'kw-dot-orange';
                     }
                 }
@@ -395,7 +408,6 @@
             });
         }
 
-        // Fermeture au clic dehors
         document.addEventListener('click', (e) => {
             if(input && suggestions && !input.contains(e.target) && !suggestions.contains(e.target)) {
                 suggestions.style.display = 'none';
@@ -403,7 +415,6 @@
         });
     }
 
-    // Auto-Init sécurisé
     let attempts = 0;
     const interval = setInterval(function() {
         const root = document.getElementById(CONFIG.containerId);
